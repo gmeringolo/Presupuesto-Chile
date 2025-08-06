@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Gastos de Viaje</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals & Sage -->
+    <!-- Application Structure Plan: Se ha diseñado una aplicación de panel de control de una sola página. La estructura fluye de arriba hacia abajo para contar una historia financiera: 1) Resumen general con las cifras clave. 2) Un desglose visual de los gastos iniciales y pendientes. 3) La sección central presenta dos gráficos "antes y después" para mostrar visualmente el problema (Balance Inicial) y la solución (Balance Final). 4) La solución se detalla en un plan de pago claro y una reconciliación final. Esta estructura fue elegida porque transforma un informe estático en una narrativa interactiva, permitiendo a los usuarios ver el desequilibrio, entender la solución propuesta y ver el resultado equitativo, todo en una vista cohesiva y fácil de navegar. -->
+    <!-- Visualization & Content Choices: 1) Cifras Clave (Informar): Texto grande para el costo total y la parte equitativa. Justificación: Destaca los datos más importantes. 2) Listas (Organizar): HTML/Tailwind para gastos. Justificación: Claridad y escaneo rápido. 3) Gráficos de Barras (Comparar): Chart.js para el balance inicial y final. Justificación: Es la forma más efectiva de visualizar y comparar las contribuciones y desequilibrios entre personas. El "antes y después" es muy impactante. 4) Diagrama de Flujo de Pago (Relacionar): HTML/Tailwind con iconos para la reconciliación. Justificación: Muestra claramente quién paga a quién, simplificando la acción final. Se confirma el uso exclusivo de Canvas para gráficos. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF8;
+            color: #3D405B;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 320px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 380px;
+            }
+        }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+        }
+        .nav-link:hover {
+            color: #81B29A;
+        }
+        .card {
+            background-color: #FFFFFF;
+            border: 1px solid #F0EAD2;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-10 border-b border-gray-200">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <h1 class="text-xl md:text-2xl font-bold text-[#3D405B]">Análisis del Viaje</h1>
+                <div class="hidden sm:flex items-center space-x-8">
+                    <a href="#resumen" class="nav-link text-gray-600 font-medium">Resumen</a>
+                    <a href="#balance" class="nav-link text-gray-600 font-medium">Balance</a>
+                    <a href="#solucion" class="nav-link text-gray-600 font-medium">Solución</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+
+        <section id="resumen" class="text-center mb-12 md:mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4 text-[#3D405B]">Distribución Equitativa de Gastos</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600 mb-8">
+                Esta aplicación visualiza y resuelve la distribución de los gastos del viaje para asegurar que cada participante contribuya de forma justa. A continuación se detalla el panorama financiero y la solución propuesta.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <div class="card rounded-xl p-6 text-center">
+                    <p class="text-lg text-gray-500">Costo Total del Viaje</p>
+                    <p class="text-4xl font-bold text-[#E07A5F] mt-2">US$3010.00</p>
+                </div>
+                <div class="card rounded-xl p-6 text-center">
+                    <p class="text-lg text-gray-500">Aporte Ideal por Persona</p>
+                    <p class="text-4xl font-bold text-[#81B29A] mt-2">US$1003.33</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12 md:mb-16">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
+                <div class="card rounded-xl p-6 md:p-8">
+                    <h3 class="text-2xl font-bold mb-4">💰 Gastos Ya Cubiertos</h3>
+                    <p class="text-gray-600 mb-6">Estos son los pagos fijos que ya fueron realizados por cada participante, creando el desequilibrio inicial.</p>
+                    <ul id="paid-expenses-list" class="space-y-4"></ul>
+                </div>
+                <div class="card rounded-xl p-6 md:p-8">
+                    <h3 class="text-2xl font-bold mb-4">⏳ Gastos Pendientes por Pagar</h3>
+                    <p class="text-gray-600 mb-6">Estos son los costos que aún deben pagarse en destino. Su asignación estratégica es clave para equilibrar las cuentas.</p>
+                    <ul id="pending-expenses-list" class="space-y-3"></ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="balance" class="mb-12 md:mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-4">Análisis del Balance: Antes y Después</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600 text-center mb-10">La visualización comparativa es la forma más clara de entender el impacto de la estrategia de pagos. A la izquierda, el desequilibrio inicial es evidente. A la derecha, vemos cómo la asignación propuesta de pagos crea un resultado final justo y equilibrado para todas.</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
+                <div class="card rounded-xl p-6 md:p-8">
+                    <h3 class="text-2xl font-bold text-center mb-4">Balance Inicial</h3>
+                    <div class="chart-container">
+                        <canvas id="initialBalanceChart"></canvas>
+                    </div>
+                </div>
+                <div class="card rounded-xl p-6 md:p-8">
+                    <h3 class="text-2xl font-bold text-center mb-4">Balance Final</h3>
+                    <div class="chart-container">
+                        <canvas id="finalBalanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="solucion" class="bg-[#F4F1DE] rounded-2xl p-6 md:p-10">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-4 text-[#3D405B]">Plan de Acción y Reconciliación Final</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600 text-center mb-10">Para alcanzar la equidad, se propone un plan de pagos específico seguido de una transferencia final. Este es el camino para saldar todas las cuentas de manera simple y transparente.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-2xl font-bold mb-4">1. Plan de Pago Sugerido</h3>
+                    <p class="text-gray-600 mb-6">Para corregir el desbalance, las personas que menos aportaron inicialmente deben cubrir los gastos pendientes de la siguiente manera:</p>
+                    <div id="payment-plan" class="space-y-4"></div>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold mb-4">2. Reconciliación Final en Efectivo</h3>
+                    <p class="text-gray-600 mb-6">Incluso con los pagos asignados, queda un pequeño ajuste. Para que todas queden exactamente en su aporte ideal, se necesita una última transferencia:</p>
+                    <div id="final-settlement" class="card rounded-xl p-6 space-y-4 bg-white"></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-8">
+        <p class="text-gray-500">Aplicación generada para una gestión financiera clara y equitativa.</p>
+    </footer>
+
+    <script>
+        const data = {
+            participants: ['Johana', 'Gianella', 'Victoria'],
+            idealShare: 1003.33,
+            initialPayments: [
+                { person: 'Johana', amount: 1300, item: 'Alquiler de Auto' },
+                { person: 'Gianella', amount: 676, item: 'Suma de Hospedajes (Lago Ronco, Santiago, Pto. Montt)' },
+                { person: 'Victoria', amount: 0, item: 'Sin pagos iniciales' }
+            ],
+            pendingExpenses: [
+                { item: 'Hospedaje Valdivia', amount: 50, payer: 'Gianella' },
+                { item: 'Hospedaje Puerto Montt 2', amount: 354, payer: 'Gianella' },
+                { item: 'Hospedaje Pucón', amount: 630, payer: 'Victoria' }
+            ],
+            finalSettlement: {
+                from: 'Victoria',
+                to: [
+                    { person: 'Johana', amount: 296.67 },
+                    { person: 'Gianella', amount: 76.67 }
+                ],
+                total: 373.34
+            }
+        };
+
+        function formatCurrency(amount) {
+            return `US$${amount.toFixed(2)}`;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            populateLists();
+            createInitialBalanceChart();
+            createFinalBalanceChart();
+            populateSolution();
+            setupSmoothScroll();
+        });
+        
+        function populateLists() {
+            const paidList = document.getElementById('paid-expenses-list');
+            data.initialPayments.forEach(p => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center border-b pb-3';
+                li.innerHTML = `
+                    <div>
+                        <p class="font-bold text-lg">${p.person}</p>
+                        <p class="text-sm text-gray-500">${p.item}</p>
+                    </div>
+                    <p class="font-bold text-lg text-[#E07A5F]">${formatCurrency(p.amount)}</p>
+                `;
+                paidList.appendChild(li);
+            });
+
+            const pendingList = document.getElementById('pending-expenses-list');
+            data.pendingExpenses.forEach(e => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center bg-gray-50 p-3 rounded-lg';
+                li.innerHTML = `
+                    <p class="font-medium">${e.item}</p>
+                    <p class="font-bold text-[#3D405B]">${formatCurrency(e.amount)}</p>
+                `;
+                pendingList.appendChild(li);
+            });
+        }
+
+        function populateSolution() {
+            const plan = document.getElementById('payment-plan');
+            data.pendingExpenses.forEach(e => {
+                const item = document.createElement('div');
+                item.className = 'card bg-white rounded-lg p-4 flex items-center justify-between';
+                item.innerHTML = `
+                    <div>
+                        <p class="font-semibold">${e.item}</p>
+                        <p class="text-sm text-gray-500">Asignado a: <span class="font-bold text-[#3D405B]">${e.payer}</span></p>
+                    </div>
+                    <p class="font-bold text-xl text-[#81B29A]">${formatCurrency(e.amount)}</p>
+                `;
+                plan.appendChild(item);
+            });
+
+            const settlement = document.getElementById('final-settlement');
+            const fromPerson = data.finalSettlement.from;
+            data.finalSettlement.to.forEach(payment => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between border-b last:border-b-0 py-2';
+                item.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-lg">${fromPerson}</span>
+                        <span class="text-green-600 font-bold text-xl">→</span>
+                        <span class="font-bold text-lg">${payment.person}</span>
+                    </div>
+                    <span class="font-bold text-lg text-[#81B29A]">${formatCurrency(payment.amount)}</span>
+                `;
+                settlement.appendChild(item);
+            });
+        }
+
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'US$' + value;
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Aporte: ${formatCurrency(context.raw)}`;
+                        }
+                    }
+                },
+                annotation: {
+                    annotations: {
+                        line1: {
+                            type: 'line',
+                            yMin: data.idealShare,
+                            yMax: data.idealShare,
+                            borderColor: '#81B29A',
+                            borderWidth: 2,
+                            borderDash: [6, 6],
+                            label: {
+                                content: `Aporte Ideal: ${formatCurrency(data.idealShare)}`,
+                                enabled: true,
+                                position: 'end',
+                                backgroundColor: 'rgba(129, 178, 154, 0.8)',
+                                font: {
+                                    weight: 'bold'
+                                },
+                                yAdjust: -10
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        function createInitialBalanceChart() {
+            const ctx = document.getElementById('initialBalanceChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.participants,
+                    datasets: [{
+                        label: 'Pago Inicial',
+                        data: data.initialPayments.map(p => p.amount),
+                        backgroundColor: ['#F28C70', '#F28C70', '#F28C70'],
+                        borderColor: '#E07A5F',
+                        borderWidth: 2,
+                        borderRadius: 5
+                    }]
+                },
+                options: chartOptions
+            });
+        }
+
+        function createFinalBalanceChart() {
+            const finalContributions = data.participants.map(person => {
+                const initial = data.initialPayments.find(p => p.person === person)?.amount || 0;
+                const pending = data.pendingExpenses
+                    .filter(e => e.payer === person)
+                    .reduce((sum, e) => sum + e.amount, 0);
+                return initial + pending;
+            });
+
+            const ctx = document.getElementById('finalBalanceChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.participants,
+                    datasets: [{
+                        label: 'Contribución Final',
+                        data: finalContributions,
+                        backgroundColor: ['#99D1B3', '#99D1B3', '#99D1B3'],
+                        borderColor: '#81B29A',
+                        borderWidth: 2,
+                        borderRadius: 5
+                    }]
+                },
+                options: chartOptions
+            });
+        }
+        
+        function setupSmoothScroll() {
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+        }
+
+    </script>
+</body>
+</html>
